@@ -1230,50 +1230,31 @@ function calcDespacho(){
 }
 
 // ═══════════════════════════════════════════════════════════
-// CONFIGURACIÓN SHAREPOINT
+// CONFIGURACIÓN GOOGLE SHEETS — TG-NOR
 // ═══════════════════════════════════════════════════════════
-const SP_CONFIG = {
-  SITE_URL: 'https://nordicgt.sharepoint.com/sites/TG-NOR',
-  LISTS: {
-    vuelos:        'TGNOR_Vuelos',
-    mantenimiento: 'TGNOR_Mantenimiento',
-    consumos:      'TGNOR_Consumos',
-    incidencias:   'TGNOR_Incidencias',
-  }
+const SHEET_ID = '11Nek03LDoYH4R25C58th7Hz96125LsieTP7tacGaf8U';
+const API_KEY  = 'AIzaSyC_kUe_tr_R5lwV-hjQatLqsRo2WWowt5I';
+const SHEETS = {
+  vuelos:        'Log de Vuelos',
+  mantenimiento: 'Mantenimiento',
+  consumos:      'Consumos',
+  incidencias:   'Incidencias',
 };
 
-// Guardar en SharePoint via REST API
-async function saveToSharePoint(listName, data) {
-  const url = `${SP_CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items`;
+async function saveToGoogleSheets(sheetName, rowData) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${API_KEY}`;
   try {
-    // Get form digest token first
-    const digestRes = await fetch(`${SP_CONFIG.SITE_URL}/_api/contextinfo`, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json;odata=verbose' },
-      credentials: 'include'
-    });
-    const digestJson = await digestRes.json();
-    const digest = digestJson.d.GetContextWebInformation.FormDigestValue;
-
-    // Post item
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json;odata=verbose',
-        'Content-Type': 'application/json;odata=verbose',
-        'X-RequestDigest': digest,
-      },
-      credentials: 'include',
-      body: JSON.stringify({ '__metadata': { 'type': `SP.Data.${listName}ListItem` }, ...data })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [rowData] })
     });
+    if (!res.ok) { const e = await res.json(); console.error('Sheets error:', e); }
     return res.ok;
-  } catch(e) {
-    console.error('SharePoint error:', e);
-    return false;
-  }
+  } catch(e) { console.error('Sheets fetch error:', e); return false; }
 }
 
-const GS_READY = true; // SharePoint always ready when user is logged in
+const GS_READY = true;
 
 // Recolectar datos del formulario de vuelos
 function getVueloData() {
@@ -1340,7 +1321,7 @@ async function guardar(tipo) {
       return;
     }
     rowData   = getVueloData();
-    sheetName = GS_CONFIG.SHEETS.vuelos;
+    sheetName = SHEETS.vuelos;
     msg       = 'Vuelo guardado correctamente';
     // Actualizar último horómetro local
     const ml = parseFloat(document.getElementById('v-mllegada')?.value);
@@ -1358,14 +1339,14 @@ async function guardar(tipo) {
     }
   } else if (tipo === 'mantenimiento') {
     rowData   = getMantData();
-    sheetName = GS_CONFIG.SHEETS.mantenimiento;
+    sheetName = SHEETS.mantenimiento;
     msg       = 'Mantenimiento registrado';
   } else if (tipo === 'consumo') {
     rowData   = getConsumoData();
-    sheetName = GS_CONFIG.SHEETS.consumos;
+    sheetName = SHEETS.consumos;
     msg       = 'Despacho registrado';
   } else if (tipo === 'incidencia') {
-    sheetName = GS_CONFIG.SHEETS.incidencias;
+    sheetName = SHEETS.incidencias;
     const g   = id => document.getElementById(id)?.value || '';
     rowData   = [g('i-dt'),'','','','','','','','Abierta',''];
     msg       = 'Incidencia registrada';
@@ -1433,8 +1414,35 @@ async function guardar(tipo) {
       spData = { Title: g('i-dt'), Estado: 'Abierta' };
       listName = SP_CONFIG.LISTS.incidencias;
     }
-    const ok = await saveToSharePoint(listName, spData);
-    showToast(ok ? msg : '⚠ Error al guardar — verifica tu sesión de Office 365', ok);
+    // Build row array matching sheet column order
+    let rowData = [];
+    if (tipo === 'vuelo') {
+      rowData = [
+        spData.Title, spData.Ruta, spData.Piloto, spData.TipoVuelo,
+        spData.MotorSalida, spData.MotorLlegada, spData.TotalMotor,
+        spData.AvionSalida, spData.AvionLlegada, spData.TotalAvion,
+        spData.SigInspeccion, spData.Combustible, spData.GPH, spData.Aceite,
+        spData.DeptoNordic, spData.Ejecutivo, spData.Cliente,
+        spData.Tarifa, spData.TotalCobrar, spData.Reportes, spData.Observaciones
+      ];
+      listName = SHEETS.vuelos;
+    } else if (tipo === 'mantenimiento') {
+      rowData = [spData.Title, spData.TipoServicio, spData.HorometroAvion,
+        spData.HorometroMotor, spData.ProximaInsp, '', spData.Tecnico,
+        spData.Taller, spData.CostoTotal, spData.TrabajoRealizado,
+        spData.Observaciones, spData.Estado];
+      listName = SHEETS.mantenimiento;
+    } else if (tipo === 'consumo') {
+      rowData = [spData.Title, spData.Aeropuerto, spData.TipoCombustible,
+        spData.Proveedor, spData.GalonesCargados, spData.PrecioGalon,
+        spData.CostoTotal, spData.AceiteAgregado, ''];
+      listName = SHEETS.consumos;
+    } else if (tipo === 'incidencia') {
+      rowData = [spData.Title, '', '', '', '', '', '', '', 'Abierta', ''];
+      listName = SHEETS.incidencias;
+    }
+    const ok = await saveToGoogleSheets(listName, rowData);
+    showToast(ok ? msg : '⚠ Error al guardar — revisa la conexión', ok);
   } else {
     showToast(msg + ' (modo local)');
   }
