@@ -1230,10 +1230,9 @@ function calcDespacho(){
 }
 
 // ═══════════════════════════════════════════════════════════
-// CONFIGURACIÓN GOOGLE SHEETS — TG-NOR
+// CONFIGURACIÓN GOOGLE SHEETS — TG-NOR (vía Apps Script)
 // ═══════════════════════════════════════════════════════════
-const SHEET_ID = '11Nek03LDoYH4R25C58th7Hz96125LsieTP7tacGaf8U';
-const API_KEY  = 'AIzaSyC_kUe_tr_R5lwV-hjQatLqsRo2WWowt5I';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxh7PSYce0zBwBjxp9KrjlLE7ghKfpwqfqwT_3dRjkXmF8CRWP7bNtd-eilJ8eBlAD3pA/exec';
 const SHEETS = {
   vuelos:        'Log de Vuelos',
   mantenimiento: 'Mantenimiento',
@@ -1242,16 +1241,19 @@ const SHEETS = {
 };
 
 async function saveToGoogleSheets(sheetName, rowData) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${API_KEY}`;
   try {
-    const res = await fetch(url, {
+    const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [rowData] })
+      body: JSON.stringify({ sheet: sheetName, row: rowData })
     });
-    if (!res.ok) { const e = await res.json(); console.error('Sheets error:', e); }
-    return res.ok;
-  } catch(e) { console.error('Sheets fetch error:', e); return false; }
+    // no-cors means we can't read the response, but if no error thrown = success
+    return true;
+  } catch(e) {
+    console.error('Apps Script error:', e);
+    return false;
+  }
 }
 
 const GS_READY = true;
