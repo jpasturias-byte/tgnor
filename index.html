@@ -1232,7 +1232,7 @@ function calcDespacho(){
 // ═══════════════════════════════════════════════════════════
 // CONFIGURACIÓN GOOGLE SHEETS — TG-NOR (vía Apps Script)
 // ═══════════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxh7PSYce0zBwBjxp9KrjlLE7ghKfpwqfqwT_3dRjkXmF8CRWP7bNtd-eilJ8eBlAD3pA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBcIGiTGysnJGyCyQkPS3evJRcbOsODhQ-v06cOzdKthFffs3adBSWWA2gPijyhc86IQ/exec';
 const SHEETS = {
   vuelos:        'Log de Vuelos',
   mantenimiento: 'Mantenimiento',
@@ -1313,141 +1313,71 @@ function showToast(msg, ok=true) {
 }
 
 async function guardar(tipo) {
-  let sheetName, rowData, msg, listName;
+  const g = id => document.getElementById(id)?.value || '';
+  const n = id => parseFloat(document.getElementById(id)?.value) || null;
+  let rowData = [], sheetName = '', msg = '';
 
   if (tipo === 'vuelo') {
-    // Validar campos mínimos
-    if (!document.getElementById('v-fecha')?.value ||
-        !document.getElementById('v-tipo')?.value) {
-      showToast('Completa al menos Fecha y Tipo de vuelo', false);
-      return;
+    if (!g('v-fecha') || !g('v-tipo')) {
+      showToast('Completa al menos Fecha y Tipo de vuelo', false); return;
     }
-    rowData   = getVueloData();
+    const t  = g('v-tipo');
+    const tm = parseFloat(document.getElementById('c-total-motor')?.textContent) || '';
+    const ta = parseFloat(document.getElementById('c-total-avion')?.textContent) || '';
+    const si = parseFloat(document.getElementById('c-sig-insp')?.textContent) || '';
+    const co = document.getElementById('c-cobro')?.textContent?.replace('$ ','').replace('—','') || '';
+    rowData = [
+      g('v-fecha'), g('v-ruta'), g('v-piloto'), t,
+      n('v-msalida'), n('v-mllegada'), tm,
+      n('v-asalida'), n('v-allegada'), ta, si,
+      n('v-gal'), parseFloat(g('v-gph'))||'', n('v-aceite'),
+      t==='Nordic'  ? g('v-depto')      : '',
+      t==='Nordic'  ? g('v-ejecutivo')  : '',
+      t==='Privado' ? g('v-cliente-priv'): '',
+      t==='Privado' ? n('v-tarifa-priv') : '',
+      co, g('v-reportes'), g('v-notas')
+    ];
     sheetName = SHEETS.vuelos;
-    msg       = 'Vuelo guardado correctamente';
-    // Actualizar último horómetro local
-    const ml = parseFloat(document.getElementById('v-mllegada')?.value);
-    const al = parseFloat(document.getElementById('v-allegada')?.value);
-    const ruta = document.getElementById('v-ruta')?.value;
-    const fecha = document.getElementById('v-fecha')?.value;
-    if (ml > 0 && al > 0) {
-      ultimoHorometro.motor = ml;
-      ultimoHorometro.avion = al;
-      if (ruta) ultimoHorometro.ruta = ruta;
-      if (fecha) {
-        const [y,m,d] = fecha.split('-');
-        ultimoHorometro.fecha = `${d}/${m}/${y}`;
-      }
+    msg = 'Vuelo guardado correctamente';
+    // Actualizar horómetro local
+    const ml = n('v-mllegada'), al = n('v-allegada');
+    if (ml && al) {
+      ultimoHorometro.motor = ml; ultimoHorometro.avion = al;
+      const r = g('v-ruta'), f = g('v-fecha');
+      if (r) ultimoHorometro.ruta = r;
+      if (f) { const [y,m,d]=f.split('-'); ultimoHorometro.fecha=`${d}/${m}/${y}`; }
     }
+
   } else if (tipo === 'mantenimiento') {
-    rowData   = getMantData();
+    rowData = [
+      g('m-fecha'), g('m-tipo'), n('m-hav'), n('m-hmot'),
+      n('m-prox'), '', g('m-tecnico'), g('m-taller'),
+      n('m-costo'), g('m-trabajo'), g('m-obs'), 'Abierto'
+    ];
     sheetName = SHEETS.mantenimiento;
-    msg       = 'Mantenimiento registrado';
+    msg = 'Mantenimiento registrado';
+
   } else if (tipo === 'consumo') {
-    rowData   = getConsumoData();
+    const gal = n('co-gal'), precio = n('co-precio');
+    rowData = [
+      g('co-fecha'), g('co-aeropuerto'), 'Avgas 100LL', g('co-proveedor'),
+      gal, precio, (gal||0)*(precio||0), n('co-aceite'), ''
+    ];
     sheetName = SHEETS.consumos;
-    msg       = 'Despacho registrado';
+    msg = 'Despacho registrado';
+
   } else if (tipo === 'incidencia') {
+    rowData = [g('i-dt'),'','','','','','','','Abierta',''];
     sheetName = SHEETS.incidencias;
-    const g   = id => document.getElementById(id)?.value || '';
-    rowData   = [g('i-dt'),'','','','','','','','Abierta',''];
-    msg       = 'Incidencia registrada';
+    msg = 'Incidencia registrada';
+
   } else {
-    // Llamada genérica (reportes, etc.)
     showToast(tipo); return;
   }
 
-  if (GS_READY) {
-    showToast('Guardando...', true);
-    // Build SharePoint item
-    let spData = {};
-    if (tipo === 'vuelo') {
-      const g = id => document.getElementById(id)?.value || '';
-      const n = id => parseFloat(document.getElementById(id)?.value) || null;
-      const t = document.getElementById('v-tipo')?.value || '';
-      spData = {
-        Title:          g('v-fecha'),
-        Ruta:           g('v-ruta'),
-        Piloto:         g('v-piloto'),
-        TipoVuelo:      t,
-        MotorSalida:    n('v-msalida'),
-        MotorLlegada:   n('v-mllegada'),
-        TotalMotor:     parseFloat(document.getElementById('c-total-motor')?.textContent) || null,
-        AvionSalida:    n('v-asalida'),
-        AvionLlegada:   n('v-allegada'),
-        TotalAvion:     parseFloat(document.getElementById('c-total-avion')?.textContent) || null,
-        SigInspeccion:  parseFloat(document.getElementById('c-sig-insp')?.textContent) || null,
-        Combustible:    n('v-gal'),
-        GPH:            parseFloat(document.getElementById('v-gph')?.value) || null,
-        Aceite:         n('v-aceite'),
-        DeptoNordic:    t==='Nordic' ? g('v-depto') : null,
-        Ejecutivo:      t==='Nordic' ? g('v-ejecutivo') : null,
-        Cliente:        t==='Privado' ? g('v-cliente-priv') : null,
-        Tarifa:         t==='Privado' ? n('v-tarifa-priv') : null,
-        TotalCobrar:    parseFloat(document.getElementById('c-cobro')?.textContent?.replace('$ ','').replace('—','')) || null,
-        Reportes:       g('v-reportes'),
-        Observaciones:  g('v-notas'),
-      };
-      listName = SP_CONFIG.LISTS.vuelos;
-    } else if (tipo === 'mantenimiento') {
-      const g = id => document.getElementById(id)?.value || '';
-      const n = id => parseFloat(document.getElementById(id)?.value) || null;
-      spData = {
-        Title: g('m-fecha'), TipoServicio: g('m-tipo'),
-        HorometroAvion: n('m-hav'), HorometroMotor: n('m-hmot'),
-        ProximaInsp: n('m-prox'), Tecnico: g('m-tecnico'),
-        Taller: g('m-taller'), CostoTotal: n('m-costo'),
-        TrabajoRealizado: g('m-trabajo'), Observaciones: g('m-obs'), Estado: 'Abierto'
-      };
-      listName = SP_CONFIG.LISTS.mantenimiento;
-    } else if (tipo === 'consumo') {
-      const g = id => document.getElementById(id)?.value || '';
-      const n = id => parseFloat(document.getElementById(id)?.value) || null;
-      spData = {
-        Title: g('co-fecha'), Aeropuerto: g('co-aeropuerto'),
-        TipoCombustible: 'Avgas 100LL', Proveedor: g('co-proveedor'),
-        GalonesCargados: n('co-gal'), PrecioGalon: n('co-precio'),
-        CostoTotal: (n('co-gal')||0)*(n('co-precio')||0),
-        AceiteAgregado: n('co-aceite')
-      };
-      listName = SP_CONFIG.LISTS.consumos;
-    } else if (tipo === 'incidencia') {
-      const g = id => document.getElementById(id)?.value || '';
-      spData = { Title: g('i-dt'), Estado: 'Abierta' };
-      listName = SP_CONFIG.LISTS.incidencias;
-    }
-    // Build row array matching sheet column order
-    let rowData = [];
-    if (tipo === 'vuelo') {
-      rowData = [
-        spData.Title, spData.Ruta, spData.Piloto, spData.TipoVuelo,
-        spData.MotorSalida, spData.MotorLlegada, spData.TotalMotor,
-        spData.AvionSalida, spData.AvionLlegada, spData.TotalAvion,
-        spData.SigInspeccion, spData.Combustible, spData.GPH, spData.Aceite,
-        spData.DeptoNordic, spData.Ejecutivo, spData.Cliente,
-        spData.Tarifa, spData.TotalCobrar, spData.Reportes, spData.Observaciones
-      ];
-      listName = SHEETS.vuelos;
-    } else if (tipo === 'mantenimiento') {
-      rowData = [spData.Title, spData.TipoServicio, spData.HorometroAvion,
-        spData.HorometroMotor, spData.ProximaInsp, '', spData.Tecnico,
-        spData.Taller, spData.CostoTotal, spData.TrabajoRealizado,
-        spData.Observaciones, spData.Estado];
-      listName = SHEETS.mantenimiento;
-    } else if (tipo === 'consumo') {
-      rowData = [spData.Title, spData.Aeropuerto, spData.TipoCombustible,
-        spData.Proveedor, spData.GalonesCargados, spData.PrecioGalon,
-        spData.CostoTotal, spData.AceiteAgregado, ''];
-      listName = SHEETS.consumos;
-    } else if (tipo === 'incidencia') {
-      rowData = [spData.Title, '', '', '', '', '', '', '', 'Abierta', ''];
-      listName = SHEETS.incidencias;
-    }
-    const ok = await saveToGoogleSheets(listName, rowData);
-    showToast(ok ? msg : '⚠ Error al guardar — revisa la conexión', ok);
-  } else {
-    showToast(msg + ' (modo local)');
-  }
+  showToast('Guardando...', true);
+  const ok = await saveToGoogleSheets(sheetName, rowData);
+  showToast(ok ? msg : '⚠ Error al guardar — revisa conexión', ok);
 }
 
 function limpiar(pid){
