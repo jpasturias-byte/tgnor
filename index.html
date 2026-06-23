@@ -76,7 +76,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 .main{padding:28px 28px 60px;max-width:1500px;margin:0 auto;}
 .section{display:none;}
 .section.active{display:block;animation:fadeIn .2s ease;}
-#sec-mantenimiento.active,#sec-consumos.active,#sec-incidencias.active,#sec-reportes.active,#sec-vuelos.active{display:block!important;}
+#sec-mantenimiento.active,#sec-parametros.active,#sec-consumos.active,#sec-incidencias.active,#sec-reportes.active,#sec-vuelos.active{display:block!important;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── PAGE HEADER ── */
@@ -448,6 +448,7 @@ tr.no-flight td{opacity:0.45;}
     <button class="nav-tab active" onclick="show('dashboard',this)">Panel</button>
     <button class="nav-tab" onclick="show('vuelos',this)">Vuelos</button>
     <button class="nav-tab" onclick="show('mantenimiento',this)">Mantenimiento</button>
+    <button class="nav-tab" onclick="show('parametros',this)">Parámetros</button>
     <button class="nav-tab" onclick="show('consumos',this)">Consumos</button>
     <button class="nav-tab" onclick="show('incidencias',this)">Incidencias</button>
     <button class="nav-tab" onclick="show('reportes',this)">Reportes</button>
@@ -464,6 +465,7 @@ tr.no-flight td{opacity:0.45;}
     <button class="mtab active" onclick="show('dashboard',this,1)">Panel</button>
     <button class="mtab" onclick="show('vuelos',this,1)">Vuelos</button>
     <button class="mtab" onclick="show('mantenimiento',this,1)">Mantenimiento</button>
+    <button class="mtab" onclick="show('parametros',this,1)">Parámetros</button>
     <button class="mtab" onclick="show('consumos',this,1)">Consumos</button>
     <button class="mtab" onclick="show('incidencias',this,1)">Incidencias</button>
     <button class="mtab" onclick="show('reportes',this,1)">Reportes</button>
@@ -1152,6 +1154,184 @@ tr.no-flight td{opacity:0.45;}
       </div>
     </div>
   </div><!-- /mr -->
+
+</section>
+
+<!-- ══════════ PARÁMETROS DE VUELO ══════════ -->
+<section class="section" id="sec-parametros">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-title">Parámetros de Vuelo</div>
+      <div class="page-sub">Monitoreo de tendencias del motor — TG-NOR</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="si(this,'pf')">Capturar vuelo</button>
+    <button class="itab" onclick="si(this,'pt')">Tendencias</button>
+    <button class="itab" onclick="si(this,'ph')">Historial</button>
+  </div>
+
+  <!-- ─── CAPTURAR ─── -->
+  <div id="pf" class="tab-panel" style="display:block;">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="sec-lbl">Foto del panel en crucero</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">
+        Sube una foto clara del display G3X. El sistema leerá los números automáticamente (gratis, en tu dispositivo) y pre-llenará el formulario. Revisa y corrige antes de guardar.
+      </p>
+      <label class="btn-secondary" style="cursor:pointer;display:inline-flex;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Subir foto del panel
+        <input type="file" id="param-foto-input" accept="image/*" capture="environment" style="display:none;" onchange="leerFotoPanel(this)">
+      </label>
+      <span id="param-foto-status" style="font-size:13px;color:var(--text3);margin-left:12px;"></span>
+
+      <div id="param-foto-preview" style="margin-top:14px;display:none;">
+        <img id="param-foto-img" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid var(--border);" alt="Panel">
+      </div>
+
+      <!-- Botón opcional de IA (solo aparece tras leer con OCR) -->
+      <div id="param-ia-fallback" style="display:none;margin-top:14px;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">
+          ¿Faltaron datos o salieron números incorrectos? Puedes usar la lectura con IA (más precisa, pero tiene un costo pequeño por foto).
+        </div>
+        <button class="btn-secondary" id="btn-usar-ia" onclick="analizarFotoPanelIA()" style="display:inline-flex;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Reintentar con IA
+        </button>
+        <span id="param-ia-status" style="font-size:12px;color:var(--text3);margin-left:10px;"></span>
+      </div>
+    </div>
+
+    <!-- Formulario de parámetros (se pre-llena con IA, editable) -->
+    <div class="card" id="param-form-card">
+      <div class="sec-lbl">Datos del vuelo</div>
+      <div class="form-grid fg4">
+        <div class="fgroup"><label>Fecha</label><input type="date" id="p-fecha"></div>
+        <div class="fgroup"><label>Piloto</label>
+          <select id="p-piloto">
+            <option value="">Seleccionar...</option>
+            <option>Juan Leal</option>
+            <option>Carlos Molina</option>
+          </select>
+        </div>
+        <div class="fgroup"><label>Fase</label>
+          <select id="p-fase"><option>Crucero</option><option>Despegue</option><option>Ascenso</option><option>Descenso</option></select>
+        </div>
+        <div class="fgroup"><label>Horómetro avión (h)</label><input type="number" id="p-hav" step="0.1" placeholder="6094.6"></div>
+      </div>
+
+      <div class="form-sep"></div>
+      <div class="sec-lbl">CHT por cilindro (°F)</div>
+      <div class="form-grid fg4" style="grid-template-columns:repeat(6,1fr);">
+        <div class="fgroup"><label>Cil 1</label><input type="number" id="p-cht1" class="cht-in" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 2</label><input type="number" id="p-cht2" class="cht-in" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 3</label><input type="number" id="p-cht3" class="cht-in" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 4</label><input type="number" id="p-cht4" class="cht-in" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 5</label><input type="number" id="p-cht5" class="cht-in" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 6</label><input type="number" id="p-cht6" class="cht-in" placeholder="—"></div>
+      </div>
+
+      <div class="sec-lbl" style="margin-top:18px;">EGT por cilindro (°F)</div>
+      <div class="form-grid fg4" style="grid-template-columns:repeat(6,1fr);">
+        <div class="fgroup"><label>Cil 1</label><input type="number" id="p-egt1" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 2</label><input type="number" id="p-egt2" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 3</label><input type="number" id="p-egt3" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 4</label><input type="number" id="p-egt4" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 5</label><input type="number" id="p-egt5" placeholder="—"></div>
+        <div class="fgroup"><label>Cil 6</label><input type="number" id="p-egt6" placeholder="—"></div>
+      </div>
+
+      <div class="form-sep"></div>
+      <div class="sec-lbl">Motor y atmósfera</div>
+      <div class="form-grid fg4">
+        <div class="fgroup"><label>Man In (inHg)</label><input type="number" id="p-manin" step="0.1" placeholder="26.3"></div>
+        <div class="fgroup"><label>RPM</label><input type="number" id="p-rpm" placeholder="2390"></div>
+        <div class="fgroup"><label>Oil PSI</label><input type="number" id="p-oilpsi" placeholder="45"></div>
+        <div class="fgroup"><label>Oil Temp (°F)</label><input type="number" id="p-oiltemp" placeholder="187"></div>
+        <div class="fgroup"><label>TIT (°F)</label><input type="number" id="p-tit" placeholder="1370"></div>
+        <div class="fgroup"><label>Altitud (ft)</label><input type="number" id="p-alt" placeholder="8500"></div>
+        <div class="fgroup"><label>TAS (kt)</label><input type="number" id="p-tas" placeholder="134"></div>
+        <div class="fgroup"><label>GS (kt)</label><input type="number" id="p-gs" placeholder="138"></div>
+        <div class="fgroup"><label>OAT (°C)</label><input type="number" id="p-oat" placeholder="14"></div>
+        <div class="fgroup"><label>Combustible (gal)</label><input type="number" id="p-fuel" step="0.1" placeholder="27"></div>
+        <div class="fgroup"><label>GPH</label><input type="number" id="p-gph" step="0.1" placeholder="16.7"></div>
+        <div class="fgroup full"><label>Notas</label><input type="text" id="p-notas" placeholder="Observaciones del vuelo..."></div>
+      </div>
+
+      <!-- Indicador de balance del motor -->
+      <div id="param-salud" style="display:none;margin-top:18px;"></div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="guardarParametros()">Guardar parámetros</button>
+        <button class="btn-secondary" onclick="limpiarParametros()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TENDENCIAS ─── -->
+  <div id="pt" class="tab-panel" style="display:none;">
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div class="sec-lbl" style="margin:0;border:none;">Tendencias del motor</div>
+        <select id="param-trend-rango" onchange="renderTendencias()" style="max-width:200px;">
+          <option value="10">Últimos 10 vuelos</option>
+          <option value="20">Últimos 20 vuelos</option>
+          <option value="50">Últimos 50 vuelos</option>
+          <option value="0">Todos</option>
+        </select>
+      </div>
+    </div>
+    <div id="param-trend-empty" style="display:none;text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:30px;margin-bottom:8px;">📊</div>
+      Aún no hay capturas de parámetros para mostrar tendencias.
+    </div>
+    <div id="param-trend-charts">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">CHT por cilindro (°F)</div>
+        <canvas id="chart-cht" style="max-height:280px;"></canvas>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">EGT por cilindro (°F)</div>
+        <canvas id="chart-egt" style="max-height:280px;"></canvas>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Temperatura y presión de aceite</div>
+          <canvas id="chart-oil" style="max-height:240px;"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Potencia (Man In / RPM)</div>
+          <canvas id="chart-power" style="max-height:240px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── HISTORIAL ─── -->
+  <div id="ph" class="tab-panel" style="display:none;">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div class="card-title" style="margin:0;">Historial de capturas</div>
+        <span id="param-hist-count" style="font-size:12px;color:var(--text3);"></span>
+      </div>
+      <div class="tbl-wrap" style="overflow-x:auto;">
+        <table style="min-width:1100px;">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Piloto</th><th>Fase</th>
+              <th>CHT máx</th><th>EGT spread</th>
+              <th>Oil °F</th><th>Oil PSI</th>
+              <th>Man In</th><th>RPM</th><th>Alt</th><th>TAS</th><th>OAT</th>
+            </tr>
+          </thead>
+          <tbody id="param-hist-tbody">
+            <tr><td colspan="12" style="text-align:center;color:var(--text3);padding:16px;">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
 </section>
 
@@ -2574,6 +2754,609 @@ async function cargarVuelosNuevos() {
   }
 }
 
+
+// ════════════════════════════════════════════════════════════
+// PARÁMETROS DE VUELO — Monitoreo de tendencias del motor
+// ════════════════════════════════════════════════════════════
+
+// Límites de referencia (Continental/Lycoming típico - ajustar según motor real)
+const PARAM_LIMITS = {
+  chtMax: 400,    // °F límite superior CHT (rojo en G3X suele ser ~420-460)
+  chtWarn: 380,
+  egtSpreadWarn: 100,  // spread > 100°F entre cilindros = atención
+  oilTempMax: 240,
+  oilPsiMin: 30,
+  oilPsiMax: 60
+};
+
+// ── Analizar foto del panel con IA (vía Apps Script) ──
+// ── Estado del archivo de foto actual (para reintento con IA) ──
+let _panelFile = null;
+
+// ── Leer foto con OCR gratis (Tesseract.js en el navegador) ──
+async function leerFotoPanel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _panelFile = file;
+
+  const status   = document.getElementById('param-foto-status');
+  const preview  = document.getElementById('param-foto-preview');
+  const img      = document.getElementById('param-foto-img');
+  const fallback = document.getElementById('param-ia-fallback');
+
+  // Mostrar preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (img) img.src = e.target.result;
+    if (preview) preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+
+  if (status) { status.textContent = '⏳ Leyendo números de la foto (puede tardar unos segundos)...'; status.style.color = 'var(--blue)'; }
+  if (fallback) fallback.style.display = 'none';
+
+  try {
+    // Cargar Tesseract.js si no está
+    if (!window.Tesseract) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    // Preprocesar imagen: escalar y aumentar contraste mejora mucho el OCR
+    const dataUrl = await preprocesarImagen(file);
+
+    const { data } = await window.Tesseract.recognize(dataUrl, 'eng', {
+      tessedit_char_whitelist: '0123456789.',
+    });
+
+    const texto = data.text || '';
+    console.log('OCR texto crudo:', texto);
+
+    const parsed = parsearTextoPanel(texto, data);
+    const cuantos = contarCamposLlenos(parsed);
+
+    prellenarParametros(parsed);
+    evaluarSaludMotor();
+
+    if (cuantos === 0) {
+      if (status) { status.textContent = '⚠ No se pudieron leer números claros. Ingresa manualmente o usa la IA.'; status.style.color = 'var(--amber)'; }
+    } else {
+      if (status) { status.textContent = '✓ ' + cuantos + ' valores leídos — REVISA todos antes de guardar (el OCR puede equivocarse)'; status.style.color = 'var(--green)'; }
+    }
+    // Siempre ofrecer la opción de IA
+    if (fallback) fallback.style.display = 'block';
+
+  } catch(e) {
+    if (status) { status.textContent = '⚠ Error en lectura automática — ingresa manualmente o usa la IA'; status.style.color = 'var(--amber)'; }
+    if (fallback) fallback.style.display = 'block';
+    console.error('leerFotoPanel:', e);
+  }
+}
+
+// ── Preprocesar imagen para mejorar OCR (escala de grises + contraste) ──
+async function preprocesarImagen(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      // Escalar para que el lado mayor sea ~1600px (mejor lectura sin saturar memoria)
+      const maxDim = 1600;
+      let { width, height } = img;
+      if (Math.max(width, height) > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width  = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      // Escala de grises + aumento de contraste
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.3*d[i] + 0.59*d[i+1] + 0.11*d[i+2];
+        const c = gray > 140 ? 255 : gray < 90 ? 0 : gray; // umbral suave
+        d[i] = d[i+1] = d[i+2] = c;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ── Interpretar el texto/posiciones del OCR del panel G3X ──
+// El OCR de un panel completo es ruidoso. Extraemos todos los números
+// y los clasificamos por rango plausible. El piloto revisa al final.
+function parsearTextoPanel(texto, ocrData) {
+  // Sacar todos los números del texto
+  const nums = (texto.match(/\d+\.?\d*/g) || [])
+    .map(s => parseFloat(s))
+    .filter(n => !isNaN(n));
+
+  const out = {};
+
+  // Heurísticas por rango típico de cada parámetro en un TU206G
+  // EGT: 1300-1500 °F  (6 valores, los más grandes de 4 dígitos)
+  const egtCandidatos = nums.filter(n => n >= 1200 && n <= 1600);
+  // CHT: 250-420 °F
+  const chtCandidatos = nums.filter(n => n >= 200 && n <= 450);
+  // Altitud: 1000-15000 ft
+  const altCandidatos = nums.filter(n => n >= 1000 && n <= 18000 && n % 1 === 0);
+
+  // EGT (6 valores) — tomar los primeros 6 en rango
+  if (egtCandidatos.length >= 1) {
+    out.egt = egtCandidatos.slice(0, 6);
+    // El TIT también cae en rango EGT (~1370); si hay 7, el extra puede ser TIT
+    if (egtCandidatos.length >= 7) out.tit = egtCandidatos[6];
+  }
+  // CHT (6 valores)
+  if (chtCandidatos.length >= 1) {
+    out.cht = chtCandidatos.slice(0, 6);
+  }
+  // Altitud — el valor más alto en rango de altitud
+  if (altCandidatos.length) {
+    out.altitud = Math.max(...altCandidatos);
+  }
+
+  // Man In: 15-30 con decimal (ej 26.3)
+  const maninC = nums.filter(n => n >= 14 && n <= 32 && n % 1 !== 0);
+  if (maninC.length) out.manin = maninC[0];
+
+  // RPM: 2000-2700
+  const rpmC = nums.filter(n => n >= 1800 && n <= 2800 && n % 1 === 0);
+  if (rpmC.length) out.rpm = rpmC[0];
+
+  // Oil PSI: 20-80 entero
+  const oilPsiC = nums.filter(n => n >= 20 && n <= 90 && n % 1 === 0);
+  if (oilPsiC.length) out.oilpsi = oilPsiC[0];
+
+  // Oil Temp: 100-240
+  const oilTC = nums.filter(n => n >= 100 && n <= 250 && n % 1 === 0);
+  if (oilTC.length) out.oiltemp = oilTC[0];
+
+  // TAS / GS: 80-200 kt
+  const spdC = nums.filter(n => n >= 80 && n <= 220 && n % 1 === 0);
+  if (spdC.length >= 1) out.tas = spdC[0];
+  if (spdC.length >= 2) out.gs = spdC[1];
+
+  // OAT: -40 a 50 °C — difícil de aislar, lo dejamos manual
+  // GPH: 8-25 con decimal
+  const gphC = nums.filter(n => n >= 5 && n <= 30 && n % 1 !== 0 && n !== out.manin);
+  if (gphC.length) out.gph = gphC[0];
+
+  // Combustible: 5-90 gal entero (distinto de oil psi)
+  const fuelC = nums.filter(n => n >= 5 && n <= 95 && n % 1 === 0);
+  if (fuelC.length) out.fuel = fuelC.find(n => n !== out.oilpsi) || fuelC[0];
+
+  return out;
+}
+
+function contarCamposLlenos(d) {
+  let c = 0;
+  if (Array.isArray(d.cht)) c += d.cht.filter(v => v != null).length;
+  if (Array.isArray(d.egt)) c += d.egt.filter(v => v != null).length;
+  ['manin','rpm','oilpsi','oiltemp','tit','altitud','tas','gs','oat','fuel','gph'].forEach(k => {
+    if (d[k] != null) c++;
+  });
+  return c;
+}
+
+// ── Reintento con IA (solo cuando el piloto lo pide) ──
+async function analizarFotoPanelIA() {
+  if (!_panelFile) { showToast('Primero sube una foto', false); return; }
+  const iaStatus = document.getElementById('param-ia-status');
+  const btn = document.getElementById('btn-usar-ia');
+  if (btn) btn.disabled = true;
+  if (iaStatus) { iaStatus.textContent = '⏳ Analizando con IA...'; iaStatus.style.color = 'var(--blue)'; }
+
+  try {
+    // Comprimir imagen antes de enviar (baja costo y acelera; la IA lee bien a 1280px)
+    const base64 = await comprimirImagenParaIA(_panelFile);
+
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'analyze_panel', image: base64, mime: 'image/jpeg' })
+    });
+    const text = await res.text();
+
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e) {
+      // Si el texto contiene "TG-NOR API activa" o HTML, el Apps Script no se actualizó
+      if (text.indexOf('TG-NOR') >= 0 || text.indexOf('<') === 0) {
+        throw new Error('El Apps Script no tiene la función de IA. Vuelve a desplegar una nueva versión.');
+      }
+      throw new Error('Respuesta no válida del servidor');
+    }
+
+    if (data.error) throw new Error(data.error);
+
+    prellenarParametros(data);
+    evaluarSaludMotor();
+    if (iaStatus) { iaStatus.textContent = '✓ Datos actualizados por IA — revisa antes de guardar'; iaStatus.style.color = 'var(--green)'; }
+
+  } catch(e) {
+    if (iaStatus) { iaStatus.textContent = '⚠ ' + e.message; iaStatus.style.color = 'var(--amber)'; }
+    console.error('analizarFotoPanelIA:', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── Comprimir imagen a JPEG ~1280px para enviar a la IA ──
+async function comprimirImagenParaIA(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxDim = 1280;
+      let { width, height } = img;
+      if (Math.max(width, height) > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width  = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      resolve(dataUrl.split(',')[1]);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+
+// ── Pre-llenar formulario con datos extraídos ──
+function prellenarParametros(d) {
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val != null && val !== '') el.value = val;
+  };
+  // CHT por cilindro
+  if (Array.isArray(d.cht)) d.cht.forEach((v,i) => set('p-cht'+(i+1), v));
+  // EGT por cilindro
+  if (Array.isArray(d.egt)) d.egt.forEach((v,i) => set('p-egt'+(i+1), v));
+  // Motor y atmósfera
+  set('p-manin',   d.manin);
+  set('p-rpm',     d.rpm);
+  set('p-oilpsi',  d.oilpsi);
+  set('p-oiltemp', d.oiltemp);
+  set('p-tit',     d.tit);
+  set('p-alt',     d.altitud);
+  set('p-tas',     d.tas);
+  set('p-gs',      d.gs);
+  set('p-oat',     d.oat);
+  set('p-fuel',    d.fuel);
+  set('p-gph',     d.gph);
+  if (d.hav) set('p-hav', d.hav);
+}
+
+// ── Evaluar salud del motor en tiempo real ──
+function evaluarSaludMotor() {
+  const box = document.getElementById('param-salud');
+  if (!box) return;
+  const chts = [1,2,3,4,5,6].map(i => parseFloat(document.getElementById('p-cht'+i)?.value)).filter(v => !isNaN(v));
+  const egts = [1,2,3,4,5,6].map(i => parseFloat(document.getElementById('p-egt'+i)?.value)).filter(v => !isNaN(v));
+
+  if (!chts.length && !egts.length) { box.style.display = 'none'; return; }
+
+  const alertas = [];
+  let estado = 'ok';
+
+  if (chts.length) {
+    const chtMax = Math.max(...chts);
+    if (chtMax >= PARAM_LIMITS.chtMax) { alertas.push('CHT máximo ' + chtMax + '°F supera el límite ('+PARAM_LIMITS.chtMax+'°F)'); estado = 'due'; }
+    else if (chtMax >= PARAM_LIMITS.chtWarn) { alertas.push('CHT máximo ' + chtMax + '°F cercano al límite'); estado = estado==='ok'?'warn':estado; }
+  }
+  if (egts.length >= 2) {
+    const spread = Math.max(...egts) - Math.min(...egts);
+    if (spread >= PARAM_LIMITS.egtSpreadWarn) { alertas.push('Spread EGT de ' + spread + '°F entre cilindros (revisar inyectores/bujías)'); estado = estado==='ok'?'warn':estado; }
+  }
+  const oilT = parseFloat(document.getElementById('p-oiltemp')?.value);
+  if (!isNaN(oilT) && oilT >= PARAM_LIMITS.oilTempMax) { alertas.push('Temp. aceite ' + oilT + '°F alta'); estado = estado==='ok'?'warn':estado; }
+  const oilP = parseFloat(document.getElementById('p-oilpsi')?.value);
+  if (!isNaN(oilP) && oilP < PARAM_LIMITS.oilPsiMin) { alertas.push('Presión aceite ' + oilP + ' PSI baja'); estado = 'due'; }
+
+  const cls = estado === 'due' ? 'danger' : estado === 'warn' ? 'warn' : '';
+  const icon = estado === 'due' ? '⚠' : estado === 'warn' ? '⚠' : '✓';
+  const titulo = estado === 'ok' ? 'Parámetros dentro de rango normal' : estado === 'warn' ? 'Atención — revisar parámetros' : 'Alerta — parámetros fuera de rango';
+
+  box.style.display = 'block';
+  box.className = 'banner ' + (cls || 'warn');
+  if (estado === 'ok') {
+    box.style.background = '#eafaf1';
+    box.style.borderColor = '#a0d8b8';
+    box.style.borderLeftColor = 'var(--green)';
+  } else {
+    box.style.background = '';
+    box.style.borderColor = '';
+    box.style.borderLeftColor = '';
+  }
+  box.innerHTML =
+    '<span class="banner-icon" style="' + (estado==='ok'?'color:var(--green)':'') + '">' + icon + '</span>' +
+    '<div class="banner-body">' +
+    '<div class="banner-title" style="' + (estado==='ok'?'color:var(--green)':'') + '">' + titulo + '</div>' +
+    (alertas.length ? '<div class="banner-desc">' + alertas.join(' · ') + '</div>' : '<div class="banner-desc">CHT, EGT, aceite y presión en valores esperados.</div>') +
+    '</div>';
+}
+
+// ── Guardar parámetros en Sheet ──
+async function guardarParametros() {
+  const g = id => document.getElementById(id)?.value || '';
+  const n = id => parseFloat(document.getElementById(id)?.value);
+
+  if (!g('p-fecha')) { showToast('Ingresa al menos la fecha', false); return; }
+
+  const cht = [1,2,3,4,5,6].map(i => n('p-cht'+i) || '');
+  const egt = [1,2,3,4,5,6].map(i => n('p-egt'+i) || '');
+
+  // Estructura de fila: fecha, piloto, fase, hav, cht1-6, egt1-6, manin, rpm, oilpsi, oiltemp, tit, alt, tas, gs, oat, fuel, gph, notas
+  const row = [
+    g('p-fecha'), g('p-piloto'), g('p-fase'), n('p-hav') || '',
+    ...cht, ...egt,
+    n('p-manin') || '', n('p-rpm') || '', n('p-oilpsi') || '', n('p-oiltemp') || '',
+    n('p-tit') || '', n('p-alt') || '', n('p-tas') || '', n('p-gs') || '',
+    n('p-oat') || '', n('p-fuel') || '', n('p-gph') || '', g('p-notas')
+  ];
+
+  const btn = document.querySelector('#param-form-card .btn-primary');
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+
+  const ok = await saveToGoogleSheets('Parametros Vuelo', row);
+
+  if (btn) { btn.textContent = 'Guardar parámetros'; btn.disabled = false; }
+
+  if (ok) {
+    showToast('✓ Parámetros del vuelo guardados', true);
+    limpiarParametros();
+    PARAM_DATA = null; // forzar recarga de tendencias
+  } else {
+    showToast('Error al guardar — reintenta', false);
+  }
+}
+
+function limpiarParametros() {
+  ['p-piloto','p-hav','p-cht1','p-cht2','p-cht3','p-cht4','p-cht5','p-cht6',
+   'p-egt1','p-egt2','p-egt3','p-egt4','p-egt5','p-egt6','p-manin','p-rpm',
+   'p-oilpsi','p-oiltemp','p-tit','p-alt','p-tas','p-gs','p-oat','p-fuel','p-gph','p-notas']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  const fase = document.getElementById('p-fase'); if (fase) fase.selectedIndex = 0;
+  const salud = document.getElementById('param-salud'); if (salud) salud.style.display = 'none';
+  const prev = document.getElementById('param-foto-preview'); if (prev) prev.style.display = 'none';
+  const st = document.getElementById('param-foto-status'); if (st) st.textContent = '';
+  const fi = document.getElementById('param-foto-input'); if (fi) fi.value = '';
+}
+
+// ── Cargar datos de parámetros desde Sheet ──
+let PARAM_DATA = null;
+
+async function cargarParamData() {
+  if (PARAM_DATA) return PARAM_DATA;
+  try {
+    const url = APPS_SCRIPT_URL + '?action=read&sheet=' + encodeURIComponent('Parametros Vuelo');
+    const res = await fetch(url);
+    const rows = JSON.parse(await res.text());
+    PARAM_DATA = rows.map(r => ({
+      fecha:   String(r[0]||'').substring(0,10),
+      piloto:  r[1]||'',
+      fase:    r[2]||'',
+      hav:     parseFloat(r[3])||0,
+      cht:     [4,5,6,7,8,9].map(i => parseFloat(r[i])||null),
+      egt:     [10,11,12,13,14,15].map(i => parseFloat(r[i])||null),
+      manin:   parseFloat(r[16])||null,
+      rpm:     parseFloat(r[17])||null,
+      oilpsi:  parseFloat(r[18])||null,
+      oiltemp: parseFloat(r[19])||null,
+      tit:     parseFloat(r[20])||null,
+      alt:     parseFloat(r[21])||null,
+      tas:     parseFloat(r[22])||null,
+      gs:      parseFloat(r[23])||null,
+      oat:     parseFloat(r[24])||null,
+      fuel:    parseFloat(r[25])||null,
+      gph:     parseFloat(r[26])||null,
+      notas:   r[27]||''
+    })).filter(r => r.fecha);
+    return PARAM_DATA;
+  } catch(e) {
+    console.warn('cargarParamData error:', e);
+    PARAM_DATA = [];
+    return PARAM_DATA;
+  }
+}
+
+// ── Historial tabla ──
+async function cargarHistorialParam() {
+  const tbody = document.getElementById('param-hist-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:16px;">Cargando...</td></tr>';
+  const data = await cargarParamData();
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:16px;">Sin capturas registradas</td></tr>';
+    document.getElementById('param-hist-count').textContent = '';
+    return;
+  }
+  const sorted = [...data].sort((a,b) => b.fecha.localeCompare(a.fecha));
+  document.getElementById('param-hist-count').textContent = sorted.length + ' capturas';
+  tbody.innerHTML = sorted.map(r => {
+    const fec = r.fecha.split('-').reverse().join('/');
+    const chtV = r.cht.filter(v=>v!=null);
+    const egtV = r.egt.filter(v=>v!=null);
+    const chtMax = chtV.length ? Math.max(...chtV) : null;
+    const egtSpread = egtV.length>=2 ? Math.max(...egtV)-Math.min(...egtV) : null;
+    const chtCls = chtMax >= PARAM_LIMITS.chtMax ? 'amber' : 'blue';
+    const spreadCls = egtSpread >= PARAM_LIMITS.egtSpreadWarn ? 'amber' : '';
+    return '<tr>' +
+      '<td>' + fec + '</td>' +
+      '<td>' + (r.piloto||'—') + '</td>' +
+      '<td>' + (r.fase||'—') + '</td>' +
+      '<td class="num ' + chtCls + '">' + (chtMax!=null ? chtMax+'°' : '—') + '</td>' +
+      '<td class="num ' + spreadCls + '">' + (egtSpread!=null ? egtSpread+'°' : '—') + '</td>' +
+      '<td class="num">' + (r.oiltemp!=null ? r.oiltemp+'°' : '—') + '</td>' +
+      '<td class="num">' + (r.oilpsi!=null ? r.oilpsi : '—') + '</td>' +
+      '<td class="num">' + (r.manin!=null ? r.manin : '—') + '</td>' +
+      '<td class="num">' + (r.rpm!=null ? r.rpm : '—') + '</td>' +
+      '<td class="num">' + (r.alt!=null ? r.alt : '—') + '</td>' +
+      '<td class="num">' + (r.tas!=null ? r.tas : '—') + '</td>' +
+      '<td class="num">' + (r.oat!=null ? r.oat+'°' : '—') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+// ── Cargar Chart.js dinámicamente ──
+async function ensureChartJS() {
+  if (window.Chart) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+let PARAM_CHARTS = {};
+
+// ── Render tendencias ──
+async function renderTendencias() {
+  const data = await cargarParamData();
+  const empty = document.getElementById('param-trend-empty');
+  const charts = document.getElementById('param-trend-charts');
+
+  if (!data.length) {
+    if (empty) empty.style.display = 'block';
+    if (charts) charts.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (charts) charts.style.display = 'block';
+
+  await ensureChartJS();
+
+  const rango = parseInt(document.getElementById('param-trend-rango')?.value) || 0;
+  let sorted = [...data].sort((a,b) => a.fecha.localeCompare(b.fecha));
+  if (rango > 0) sorted = sorted.slice(-rango);
+
+  const labels = sorted.map(r => r.fecha.substring(5).split('-').reverse().join('/'));
+  const cilColors = ['#1a5fbe','#0d8f58','#b87000','#b52424','#7f77dd','#1d9e75'];
+
+  // Destruir charts previos
+  Object.values(PARAM_CHARTS).forEach(c => { if(c) c.destroy(); });
+  PARAM_CHARTS = {};
+
+  const commonOpts = (titleY) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: {
+      y: { title: { display: !!titleY, text: titleY }, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false } }
+    }
+  });
+
+  // CHT chart
+  const ctxCht = document.getElementById('chart-cht');
+  if (ctxCht) {
+    PARAM_CHARTS.cht = new Chart(ctxCht, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [0,1,2,3,4,5].map(i => ({
+          label: 'Cil ' + (i+1),
+          data: sorted.map(r => r.cht[i]),
+          borderColor: cilColors[i],
+          backgroundColor: cilColors[i],
+          tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true
+        }))
+      },
+      options: commonOpts('°F')
+    });
+  }
+
+  // EGT chart
+  const ctxEgt = document.getElementById('chart-egt');
+  if (ctxEgt) {
+    PARAM_CHARTS.egt = new Chart(ctxEgt, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [0,1,2,3,4,5].map(i => ({
+          label: 'Cil ' + (i+1),
+          data: sorted.map(r => r.egt[i]),
+          borderColor: cilColors[i],
+          backgroundColor: cilColors[i],
+          tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true
+        }))
+      },
+      options: commonOpts('°F')
+    });
+  }
+
+  // Oil chart (temp + psi, dual axis)
+  const ctxOil = document.getElementById('chart-oil');
+  if (ctxOil) {
+    PARAM_CHARTS.oil = new Chart(ctxOil, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Oil °F', data: sorted.map(r=>r.oiltemp), borderColor:'#b52424', backgroundColor:'#b52424', yAxisID:'y', tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true },
+          { label: 'Oil PSI', data: sorted.map(r=>r.oilpsi), borderColor:'#1a5fbe', backgroundColor:'#1a5fbe', yAxisID:'y1', tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{size:11} } } },
+        scales:{
+          y:{ position:'left', title:{display:true,text:'°F'}, grid:{color:'rgba(0,0,0,0.05)'} },
+          y1:{ position:'right', title:{display:true,text:'PSI'}, grid:{display:false} },
+          x:{ grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  // Power chart (Man In + RPM, dual axis)
+  const ctxPow = document.getElementById('chart-power');
+  if (ctxPow) {
+    PARAM_CHARTS.power = new Chart(ctxPow, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Man In', data: sorted.map(r=>r.manin), borderColor:'#b87000', backgroundColor:'#b87000', yAxisID:'y', tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true },
+          { label: 'RPM', data: sorted.map(r=>r.rpm), borderColor:'#0d8f58', backgroundColor:'#0d8f58', yAxisID:'y1', tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{size:11} } } },
+        scales:{
+          y:{ position:'left', title:{display:true,text:'inHg'}, grid:{color:'rgba(0,0,0,0.05)'} },
+          y1:{ position:'right', title:{display:true,text:'RPM'}, grid:{display:false} },
+          x:{ grid:{display:false} }
+        }
+      }
+    });
+  }
+}
+
+// Listeners para evaluar salud al editar CHT/EGT manualmente
+document.addEventListener('input', function(e) {
+  if (e.target && /^p-(cht|egt|oiltemp|oilpsi)/.test(e.target.id)) {
+    evaluarSaludMotor();
+  }
+});
+
+
 function normalizeDate(val) {
   if (!val) return '';
   const s = val.toString();
@@ -2657,6 +3440,8 @@ function si(el, tid){
   // Load historial from Sheet when tab opens
   if (tid === 'mh')  cargarHistorialMant();
   if (tid === 'il')  cargarHistorialInc();
+  if (tid === 'pt')  renderTendencias();
+  if (tid === 'ph')  cargarHistorialParam();
 }
 
 // ── Cargar historial Mantenimiento desde Sheet ──
@@ -3328,122 +4113,14 @@ async function cargarValeRepuestos(input) {
 
     const ab  = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({data: ab}).promise;
-
-    // ── Columnas del PDF de Aeronaves S.A. (coordenadas X en puntos PDF) ──
-    // REFERENCIA:  X < 110
-    // DESCRIPCIÓN: 110 ≤ X < 320
-    // UBICACION:   320 ≤ X < 435
-    // CANTIDAD:    435 ≤ X < 475
-    // PRECIO:      475 ≤ X < 535
-    // IMPORTE:     X ≥ 535
-    const COL = {
-      ref:   [0,   110],
-      desc:  [110, 320],
-      ubic:  [320, 435],
-      cant:  [435, 475],
-      precio:[475, 535],
-      imp:   [535, 9999]
-    };
-    const inCol = (x, col) => x >= COL[col][0] && x < COL[col][1];
-
-    // Recoger todos los items con posición x, y de todas las páginas
-    const allItems = [];
+    let txt = '';
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc   = await page.getTextContent();
-      for (const item of tc.items) {
-        if (!item.str || !item.str.trim()) continue;
-        allItems.push({
-          x: item.transform[4],
-          y: item.transform[5],
-          str: item.str.trim()
-        });
-      }
+      txt += tc.items.map(i => i.str).join(' ') + '\n';
     }
 
-    // Agrupar por fila (Y redondeado a múltiplos de 3 para absorber variaciones)
-    const rowMap = {};
-    for (const item of allItems) {
-      const y = Math.round(item.y / 3) * 3;
-      if (!rowMap[y]) rowMap[y] = [];
-      rowMap[y].push(item);
-    }
-
-    // Ordenar filas de arriba a abajo
-    const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
-
-    // El PDF de Aeronaves tiene DOS filas por ítem:
-    //   Fila A (Y más alto): solo DESCRIPCIÓN (X ≈ 114)
-    //   Fila B (Y más bajo, ~3-6 pts abajo): REFERENCIA + UBICACION + CANTIDAD + PRECIO + IMPORTE
-    // Recorremos buscando pares de filas consecutivas
-
-    const lista = [];
-    const parseNumGT = s => {
-      const t = (s||'').trim();
-      if (t.includes('.') && t.includes(',')) return parseFloat(t.replace(/\./g,'').replace(',','.'));
-      if (t.includes(',')) return parseFloat(t.replace(',','.'));
-      return parseFloat(t)||0;
-    };
-    const isMoney = t => /^\d{1,3}(\.\d{3})*(,\d{1,2})$/.test(t.trim());
-
-    // Palabras a ignorar como REFERENCIA
-    const SKIP_REF = new Set(['REFERENCIA','TOTAL','PAGINA','RECIBIDO','ENTREGADO',
-      'AUTORIZADO','OBSERVACIONES','ENVIO','FECHA','CLIENTE','NIT','DIRECCION',
-      'CONDICIONES','CREDITO','AERONAVES','BIOSKA']);
-
-    for (let yi = 0; yi < sortedYs.length; yi++) {
-      const y    = sortedYs[yi];
-      const row  = rowMap[y].sort((a, b) => a.x - b.x);
-
-      // ¿Esta fila tiene REFERENCIA (X < 110) y datos numéricos al final?
-      const refItems  = row.filter(i => inCol(i.x, 'ref'));
-      const impItems  = row.filter(i => inCol(i.x, 'imp'));
-      const precItems = row.filter(i => inCol(i.x, 'precio'));
-      const cantItems = row.filter(i => inCol(i.x, 'cant'));
-
-      if (!refItems.length || !impItems.length) continue;
-
-      const refText = refItems.map(i => i.str).join(' ').trim().toUpperCase();
-      if (SKIP_REF.has(refText) || /^DESCRIPCI/.test(refText)) continue;
-      if (!isMoney(impItems[0].str)) continue;
-
-      // Importe y precio
-      const importe = parseNumGT(impItems[0].str);
-      const precio  = precItems.length && isMoney(precItems[0].str)
-                      ? parseNumGT(precItems[0].str)
-                      : importe;
-      const cantidad = cantItems.length ? parseInt(cantItems[0].str) || 1 : 1;
-
-      // DESCRIPCIÓN: buscar en la fila anterior (Y mayor ~3-12 pts) en columna desc
-      let desc = '';
-      for (let dj = yi - 1; dj >= Math.max(0, yi - 4); dj--) {
-        const yAbove = sortedYs[dj];
-        if (yAbove - y > 20) break; // demasiado lejos
-        const rowAbove = rowMap[yAbove];
-        const descItems = rowAbove.filter(i => inCol(i.x, 'desc'));
-        if (descItems.length) {
-          desc = descItems.map(i => i.str).join(' ').trim();
-          break;
-        }
-      }
-      // Si no encontró descripción arriba, buscar en la misma fila columna desc
-      if (!desc) {
-        const descSameRow = row.filter(i => inCol(i.x, 'desc'));
-        desc = descSameRow.map(i => i.str).join(' ').trim();
-      }
-      // Fallback: usar la referencia como descripción
-      if (!desc) desc = refText;
-
-      if (importe > 0) {
-        lista.push({
-          codigo:      refText,
-          descripcion: desc,
-          cantidad:    cantidad,
-          precio:      Math.round(precio  * 100) / 100,
-          total:       Math.round(importe * 100) / 100
-        });
-      }
-    }
+    const lista = extraerRepuestosDeVale(txt);
 
     if (!lista.length) {
       if (status) { status.textContent = 'No se detectaron repuestos — verifica el PDF'; status.style.color = 'var(--red)'; }
@@ -3451,12 +4128,15 @@ async function cargarValeRepuestos(input) {
     }
 
     if (status) { status.textContent = lista.length + ' repuestos detectados — revisa y guarda'; status.style.color = 'var(--green)'; }
+
+    // Store for saving
     window._valeRepuestos = lista;
+
+    // Show preview
     mostrarVistaVale(lista, file.name);
 
   } catch(e) {
     if (status) { status.textContent = 'Error: ' + e.message; status.style.color = 'var(--red)'; }
-    console.error('cargarValeRepuestos:', e);
   }
 }
 
